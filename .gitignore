@@ -1,3 +1,8 @@
+# Binaries and tools
+*.zip
+*.exe
+gh_cli/
+
 # Terraform
 .terraform/
 *.tfstate
