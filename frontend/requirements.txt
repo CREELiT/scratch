@@ -1,0 +1,4 @@
+flask
+google-cloud-dialogflow-cx
+gunicorn
+twilio

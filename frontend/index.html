@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Customer Support</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --chat-bg: #1e293b;
+            --input-bg: #334155;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-color: #3b82f6;
+            --accent-hover: #2563eb;
+            --user-msg-bg: #3b82f6;
+            --bot-msg-bg: #334155;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .chat-container {
+            width: 100%;
+            max-width: 600px;
+            height: 90vh;
+            background-color: var(--chat-bg);
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--input-bg);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .chat-header h1 {
+            margin: 0;
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            background-color: #22c55e;
+            border-radius: 50%;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            line-height: 1.5;
+            font-size: 0.95rem;
+            position: relative;
+            word-wrap: break-word;
+        }
+
+        .message.user {
+            align-self: flex-end;
+            background-color: var(--user-msg-bg);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.bot {
+            align-self: flex-start;
+            background-color: var(--bot-msg-bg);
+            color: var(--text-primary);
+            border-bottom-left-radius: 4px;
+        }
+
+        .chat-input-area {
+            padding: 20px;
+            border-top: 1px solid var(--input-bg);
+            display: flex;
+            gap: 12px;
+            background-color: var(--chat-bg);
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 12px 16px;
+            border-radius: 8px;
+            border: 1px solid var(--input-bg);
+            background-color: var(--input-bg);
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--accent-color);
+        }
+
+        button {
+            padding: 12px 24px;
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: var(--accent-hover);
+        }
+
+        .typing-indicator {
+            display: none;
+            align-self: flex-start;
+            background-color: var(--bot-msg-bg);
+            padding: 12px 16px;
+            border-radius: 12px;
+            border-bottom-left-radius: 4px;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+
+        /* Scrollbar styling */
+        .chat-messages::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .chat-messages::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb {
+            background-color: var(--input-bg);
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="chat-container">
+        <header class="chat-header">
+            <div class="status-dot"></div>
+            <h1>Ren 360 AI Support</h1>
+        </header>
+
+        <div class="chat-messages" id="messageHistory">
+            <div class="message bot">
+                Hello! I'm your AI support assistant. How can I help you today?
+            </div>
+            <div class="typing-indicator" id="typingIndicator">AI is typing...</div>
+        </div>
+
+        <div class="chat-input-area">
+            <input type="text" id="userInput" placeholder="Type your message..." autocomplete="off">
+            <button onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <script>
+        const messageHistory = document.getElementById('messageHistory');
+        const userInput = document.getElementById('userInput');
+        const typingIndicator = document.getElementById('typingIndicator');
+
+        // This value will be replaced by envsubst at runtime
+        // Use relative path for BFF pattern
+        const API_ENDPOINT = "/chat";
+
+        // Generate a random session ID for this page load
+        const SESSION_ID = 'session-' + Math.random().toString(36).substr(2, 9);
+
+        // Helper to format messages
+        function appendMessage(text, sender) {
+            const msgDiv = document.createElement('div');
+            msgDiv.classList.add('message', sender);
+            msgDiv.textContent = text;
+
+            // Insert before typing indicator
+            messageHistory.insertBefore(msgDiv, typingIndicator);
+            messageHistory.scrollTop = messageHistory.scrollHeight;
+        }
+
+        function setTyping(isTyping) {
+            typingIndicator.style.display = isTyping ? 'block' : 'none';
+            messageHistory.scrollTop = messageHistory.scrollHeight;
+        }
+
+        async function sendMessage() {
+            const text = userInput.value.trim();
+            if (text === "") return;
+
+            // 1. Append user message
+            appendMessage(text, 'user');
+            userInput.value = '';
+            setTyping(true);
+
+            try {
+                // 2. Call the API
+                const response = await fetch(API_ENDPOINT, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: text,
+                        sessionId: SESSION_ID
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Server error: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                // 3. Handle successful response
+                setTyping(false);
+                if (data.reply) {
+                    appendMessage(data.reply, 'bot');
+                } else if (data.message) {
+                    appendMessage(data.message, 'bot'); // Fallback if field is named message
+                } else {
+                    appendMessage("(Empty response received)", 'bot');
+                }
+
+            } catch (error) {
+                console.error("Chat error:", error);
+                setTyping(false);
+                appendMessage("Sorry, I'm having trouble connecting to the server right now. Please try again later.", 'bot');
+            }
+        }
+
+        // Allow 'Enter' key to send
+        userInput.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+
+</html>
